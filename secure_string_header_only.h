@@ -32,6 +32,14 @@ extern "C" {
 #define NO_RETURN __attribute__((noreturn))
 #endif
 
+#ifndef BAD_PTR
+#ifdef __cplusplus
+#define BAD_PTR nullptr
+#else
+#define BAD_PTR NULL
+#endif
+#endif
+
 static inline void error_print(const char* msg) {
   const size_t msg_length = strlen(msg);
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -84,6 +92,11 @@ static inline NO_RETURN void integer_overflow_error(const char* api_name) {
       api_name, "[err] Aborting due to potential integer overflow in: ");
 }
 
+static inline NO_RETURN void null_pointer_error(const char* api_name) {
+  error_with_prefix_msg(
+      api_name, "[err] Aborting due to unexpected null pointer in: ");
+}
+
 /**
  * Bounds checking (i.e. destination) wrapper for std::memcpy. This version
  * aborts the process if there's a possibility of buffer overflow.
@@ -108,6 +121,9 @@ static inline void* checked_memcpy(
     size_t count) {
   if (destination_size < count) {
     buffer_overflow_error_with_size(__func__, destination_size, count);
+  }
+  if (source == BAD_PTR || destination == BAD_PTR) {
+    null_pointer_error(__func__);
   }
   return memcpy(destination, source, count);
 }
