@@ -137,7 +137,8 @@ static inline void* checked_memcpy(
  *      Pointer to the destination where the content is to be copied.
  * @param destination_size
  *      Max number of bytes to modify in the destination (typically the size of
- * the destination buffer).
+ * the destination buffer). This value should be greater than or equal to offset
+ * + count.
  * @param offset
  *      The number of bytes to offset the copied bytes into the destination
  * buffer.
@@ -158,8 +159,17 @@ static inline void* checked_memcpy_offset(
     size_t offset,
     const void* source,
     size_t count) {
-  if (destination_size < count || offset >= destination_size) {
-    buffer_overflow_error_with_size(__func__, destination_size - offset, count);
+  // Naively, we could just check count > destination_size - offset. However,
+  // if offset is very large, e.g. size_t(-1), then destination_size - offset
+  // will overflow `size_t` and hence act additive to destination_size.
+  //
+  // To avoid this, we properly compute the available_size and then check that.
+
+  size_t available_size =
+      offset > destination_size ? 0 : destination_size - offset;
+
+  if (count > available_size) {
+    buffer_overflow_error_with_size(__func__, available_size, count);
   }
 
   memcpy((char*)destination + offset, source, count);
